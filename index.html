@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TP IF3602 - Gestion de Mémoire</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="style.css">
+   
+</head>
+<body>
+    <div class="container" id="mainContainer">
+        <h1>TP IF3602 - Gestion de Mémoire<br>
+            <span class="authors">Réalisé par : Abdourahamane Mady & Mouna Lebnene</span>
+        </h1>
+        
+        <div class="menu" id="mainMenu">
+            <div class="menu-item" onclick="showSubmenu(1)">1. Saisie/Chargement des données</div>
+            <div class="menu-item" onclick="showAlgorithmPage('FIFO')">2. Algorithme FIFO</div>
+            <div class="menu-item" onclick="showAlgorithmPage('OPTIMAL')">3. Algorithme Optimal</div>
+            <div class="menu-item" onclick="showAlgorithmPage('LRU')">4. Algorithme LRU</div>
+            <div class="menu-item" onclick="showAlgorithmPage('SECOND_CHANCE')">5. Algorithme Seconde Chance</div>
+            <div class="menu-item" onclick="showExecutionsPage()">6. Historique des Exécutions</div>
+            <div class="menu-item" onclick="showGraphsPage()">7. Comparaison des Algorithmes</div>
+            <div class="menu-item back-btn" onclick="window.close()">8. Quitter l'Application</div>
+        </div>
+        
+        <div class="submenu" id="submenu1">
+            <h2>Méthode de saisie des données</h2>
+            <div class="menu">
+                <div class="menu-item submenu-item" onclick="showManualInputForm()">1. Saisie manuelle</div>
+                <div class="menu-item submenu-item" onclick="showFileInput()">2. Chargement depuis fichier</div>
+                <div class="menu-item submenu-item back-btn" onclick="hideSubmenu(1)">3. Retour au menu</div>
+            </div>
+            
+            <div id="manualInputForm" class="input-form" style="display: none;">
+                <h3>Saisie manuelle des paramètres</h3>
+                <div>
+                    <label for="frameCount">Nombre de cadres (mémoire physique):</label>
+                    <input type="number" id="frameCount" min="1" placeholder="Ex: 3">
+                </div>
+                <div>
+                    <label for="referenceString">Séquence de référence (pages séparées par des espaces):</label>
+                    <input type="text" id="referenceString" placeholder="Ex: 1 2 3 4 1 2">
+                </div>
+                <button onclick="saveManualData()">Valider</button>
+                <button class="back-btn" onclick="hideManualInputForm()">Annuler</button>
+            </div>
+            
+            <div id="fileInputContainer" class="input-form" style="display: none;">
+                <h3>Chargement depuis un fichier texte</h3>
+                <div class="file-input-container">
+                    <label for="fileInput" class="file-input-label">Parcourir les fichiers</label>
+                    <input type="file" id="fileInput" accept=".txt">
+                    <span id="fileName" class="file-name">Aucun fichier sélectionné</span>
+                </div>
+                <p style="color: var(--gray-dark); margin-top: 10px;">
+                    Format du fichier :<br>
+                    - 1ère ligne : séquence de pages (ex: 1 2 3 4)<br>
+                    - 2ème ligne : nombre de cadres (ex: 3)
+                </p>
+                <button onclick="loadDataFromFile()">Charger les données</button>
+                <button class="back-btn" onclick="hideFileInput()">Annuler</button>
+            </div>
+        </div>
+        
+        <div class="footer">
+            Université IF3602 - Année universitaire 2024/2025
+        </div>
+    </div>
+
+    <!-- Pages de simulation -->
+    <div id="FIFOPage" class="container simulation-page">
+        <h1>Simulation FIFO (First In First Out)</h1>
+        <div id="FIFOResults" class="simulation-container"></div>
+        <button class="return-btn" onclick="returnToMainMenu()">Retour au menu</button>
+    </div>
+    
+    <div id="OPTIMALPage" class="container simulation-page">
+        <h1>Simulation Algorithme Optimal</h1>
+        <div id="OPTIMALResults" class="simulation-container"></div>
+        <button class="return-btn" onclick="returnToMainMenu()">Retour au menu</button>
+    </div>
+    
+    <div id="LRUPage" class="container simulation-page">
+        <h1>Simulation LRU (Least Recently Used)</h1>
+        <div id="LRUResults" class="simulation-container"></div>
+        <button class="return-btn" onclick="returnToMainMenu()">Retour au menu</button>
+    </div>
+    
+    <div id="SECOND_CHANCEPage" class="container simulation-page">
+        <h1>Simulation Algorithme Seconde Chance</h1>
+        <div id="SECOND_CHANCEResults" class="simulation-container"></div>
+        <button class="return-btn" onclick="returnToMainMenu()">Retour au menu</button>
+    </div>
+    
+    <div id="executionsPage" class="container simulation-page">
+        <h1>Historique des Exécutions</h1>
+        <div id="executionsResults" class="simulation-container"></div>
+        <button class="return-btn" onclick="returnToMainMenu()">Retour au menu</button>
+    </div>
+    
+    <div id="graphsPage" class="container simulation-page">
+        <h1>Comparaison des Algorithmes</h1>
+        <div class="chart-container">
+            <canvas id="algorithmChart"></canvas>
+        </div>
+        <button class="return-btn" onclick="returnToMainMenu()">Retour au menu</button>
+    </div>
+
+    <script>
+        /**
+         * VARIABLES GLOBALES
+         * referenceString : Tableau contenant la séquence de référence des pages
+         * frameCount : Nombre de cadres disponibles en mémoire physique
+         * executions : Historique des simulations effectuées
+         * algorithmChart : Instance du graphique de comparaison
+         */
+        let referenceString = [];
+        let frameCount = 0;
+        let executions = [];
+        let algorithmChart = null;
+        
+        /**
+         * Affiche un sous-menu
+         * @param {number} menuNumber - Numéro du sous-menu à afficher
+         */
+        function showSubmenu(menuNumber) {
+            document.getElementById('mainMenu').style.display = 'none';
+            document.getElementById('submenu' + menuNumber).style.display = 'block';
+        }
+        
+        /**
+         * Masque un sous-menu
+         * @param {number} menuNumber - Numéro du sous-menu à masquer
+         */
+        function hideSubmenu(menuNumber) {
+            document.getElementById('submenu' + menuNumber).style.display = 'none';
+            document.getElementById('mainMenu').style.display = 'flex';
+        }
+        
+        /**
+         * Affiche le formulaire de saisie manuelle
+         */
+        function showManualInputForm() {
+            document.getElementById('manualInputForm').style.display = 'block';
+            document.getElementById('fileInputContainer').style.display = 'none';
+        }
+        
+        /**
+         * Masque le formulaire de saisie manuelle
+         */
+        function hideManualInputForm() {
+            document.getElementById('manualInputForm').style.display = 'none';
+        }
+        
+        /**
+         * Affiche le formulaire de chargement de fichier
+         */
+        function showFileInput() {
+            document.getElementById('fileInputContainer').style.display = 'block';
+            document.getElementById('manualInputForm').style.display = 'none';
+            
+            document.getElementById('fileInput').addEventListener('change', function(e) {
+                const fileName = e.target.files[0] ? e.target.files[0].name : 'Aucun fichier sélectionné';
+                document.getElementById('fileName').textContent = fileName;
+            });
+        }
+        
+        /**
+         * Masque le formulaire de chargement de fichier
+         */
+        function hideFileInput() {
+            document.getElementById('fileInputContainer').style.display = 'none';
+            document.getElementById('fileInput').value = '';
+            document.getElementById('fileName').textContent = 'Aucun fichier sélectionné';
+        }
+        
+        /**
+         * Sauvegarde les données saisies manuellement
+         */
+        function saveManualData() {
+            const frameInput = document.getElementById('frameCount').value;
+            const inputString = document.getElementById('referenceString').value.trim();
+            
+            // Validation des entrées
+            if (inputString === '') {
+                alert("Veuillez entrer une séquence de pages valide!");
+                return;
+            }
+            
+            if (frameInput === '' || isNaN(frameInput)) {
+                alert("Veuillez entrer un nombre de cadres valide!");
+                return;
+            }
+            
+            frameCount = parseInt(frameInput);
+            referenceString = inputString.split(/\s+/).map(Number);
+            
+            if (referenceString.some(isNaN)) {
+                alert("La séquence contient des valeurs non numériques!");
+                referenceString = [];
+                return;
+            }
+            
+            if (frameCount < 1) {
+                alert("Le nombre de cadres doit être supérieur à 0!");
+                frameCount = 0;
+                return;
+            }
+            
+            alert("Paramètres enregistrés avec succès!\n\n" + 
+                  `Séquence: ${referenceString.join(' ')}\n` +
+                  `Cadres: ${frameCount}`);
+            hideManualInputForm();
+        }
+        
+        /**
+         * Charge les données depuis un fichier texte
+         */
+        function loadDataFromFile() {
+            const fileInput = document.getElementById('fileInput');
+            
+            if (!fileInput.files || fileInput.files.length === 0) {
+                alert("Veuillez sélectionner un fichier!");
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    const content = e.target.result.split('\n');
+                    
+                    if (content.length < 2) {
+                        throw new Error("Le fichier doit contenir 2 lignes (séquence et nombre de cadres)");
+                    }
+                    
+                    // Lire la séquence de référence
+                    referenceString = content[0].trim().split(/\s+/).map(Number);
+                    
+                    // Lire le nombre de cadres
+                    frameCount = parseInt(content[1].trim());
+                    
+                    // Validation des données
+                    if (isNaN(frameCount)) {
+                        throw new Error("Nombre de cadres invalide");
+                    }
+                    
+                    if (referenceString.length === 0) {
+                        throw new Error("La séquence de référence est vide");
+                    }
+                    
+                    if (referenceString.some(isNaN)) {
+                        throw new Error("La séquence contient des valeurs non numériques");
+                    }
+                    
+                    if (frameCount < 1) {
+                        throw new Error("Le nombre de cadres doit être supérieur à 0");
+                    }
+                    
+                    alert(`Fichier chargé avec succès!\n\n` +
+                          `Séquence: ${referenceString.join(' ')}\n` +
+                          `Cadres: ${frameCount}`);
+                    hideFileInput();
+                    hideSubmenu(1);
+                } catch (error) {
+                    alert("Erreur de lecture:\n" + error.message);
+                    console.error(error);
+                    referenceString = [];
+                    frameCount = 0;
+                }
+            };
+            
+            reader.onerror = function() {
+                alert("Erreur lors de la lecture du fichier");
+                referenceString = [];
+                frameCount = 0;
+            };
+            
+            reader.readAsText(file);
+        }
+        
+        /**
+         * Affiche la page de simulation d'un algorithme
+         * @param {string} algorithm - Nom de l'algorithme (FIFO, OPTIMAL, LRU, SECOND_CHANCE)
+         */
+        function showAlgorithmPage(algorithm) {
+            if (referenceString.length === 0 || frameCount === 0) {
+                alert("Veuillez d'abord saisir ou charger des données valides!");
+                return;
+            }
+            
+            document.getElementById('mainContainer').style.display = 'none';
+            document.getElementById(algorithm + 'Page').style.display = 'block';
+            
+            const result = runAlgorithm(algorithm);
+            displayResults(algorithm, result, algorithm + 'Results');
+        }
+        
+        /**
+         * Affiche la page d'historique des exécutions
+         */
+        function showExecutionsPage() {
+            if (executions.length === 0) {
+                alert("Aucune simulation n'a été effectuée!");
+                return;
+            }
+            
+            document.getElementById('mainContainer').style.display = 'none';
+            document.getElementById('executionsPage').style.display = 'block';
+            showExecutions('executionsResults');
+            saveExecutionsToFile();
+        }
+        
+        /**
+         * Affiche la page de comparaison graphique
+         */
+        function showGraphsPage() {
+            if (executions.length === 0) {
+                alert("Aucune simulation n'a été effectuée!");
+                return;
+            }
+            
+            document.getElementById('mainContainer').style.display = 'none';
+            document.getElementById('graphsPage').style.display = 'block';
+            
+            if (algorithmChart) {
+                algorithmChart.destroy();
+            }
+            
+            createAlgorithmChart();
+        }
+        
+        /**
+         * Retourne au menu principal
+         */
+        function returnToMainMenu() {
+            const pages = document.querySelectorAll('.simulation-page');
+            pages.forEach(page => {
+                page.style.display = 'none';
+            });
+            
+            document.getElementById('mainContainer').style.display = 'block';
+        }
+        
+        /**
+         * Exécute l'algorithme de gestion de mémoire sélectionné
+         * @param {string} algorithm - Nom de l'algorithme
+         * @returns {object} Résultats de la simulation
+         */
+        function runAlgorithm(algorithm) {
+            let result;
+            
+            switch(algorithm) {
+                case 'FIFO':
+                    result = simulateFIFO();
+                    break;
+                case 'OPTIMAL':
+                    result = simulateOptimal();
+                    break;
+                case 'LRU':
+                    result = simulateLRU();
+                    break;
+                case 'SECOND_CHANCE':
+                    result = simulateSecondChance();
+                    break;
+                default:
+                    alert("Algorithme non reconnu!");
+                    return;
+            }
+            
+            // Enregistrement dans l'historique
+            executions.push({
+                algorithm: algorithm,
+                result: result,
+                timestamp: new Date().toLocaleString()
+            });
+            
+            return result;
+        }
+        
+        /**
+         * Simulation de l'algorithme FIFO
+         * @returns {object} Résultats de la simulation
+         */
+        function simulateFIFO() {
+            let memory = []; // Cadres mémoire
+            let queue = [];   // File d'attente pour le remplacement
+            let faults = 0;   // Compteur de fautes
+            let steps = [];   // Historique des étapes
+            
+            for (let page of referenceString) {
+                let step = {page: page, frames: [], fault: false};
+                
+                // Si la page n'est pas en mémoire
+                if (!memory.includes(page)) {
+                    faults++;
+                    step.fault = true;
+                    
+                    // Si il reste des cadres libres
+                    if (memory.length < frameCount) {
+                        memory.push(page);
+                        queue.push(page);
+                    } 
+                    // Sinon remplacement FIFO
+                    else {
+                        const replacedPage = queue.shift();
+                        const index = memory.indexOf(replacedPage);
+                        memory[index] = page;
+                        queue.push(page);
+                    }
+                }
+                
+                // Sauvegarde de l'état actuel
+                step.frames = [...memory];
+                steps.push(step);
+            }
+            
+            return {faults: faults, steps: steps};
+        }
+        
+        /**
+         * Simulation de l'algorithme Optimal
+         * @returns {object} Résultats de la simulation
+         */
+        function simulateOptimal() {
+            let memory = [];
+            let faults = 0;
+            let steps = [];
+            
+            for (let i = 0; i < referenceString.length; i++) {
+                const page = referenceString[i];
+                let step = {page: page, frames: [], fault: false};
+                
+                if (!memory.includes(page)) {
+                    faults++;
+                    step.fault = true;
+                    
+                    if (memory.length < frameCount) {
+                        memory.push(page);
+                    } else {
+                        // Recherche de la page qui ne sera pas utilisée le plus longtemps
+                        let farthest = -1;
+                        let indexToReplace = 0;
+                        
+                        for (let j = 0; j < memory.length; j++) {
+                            const nextUse = referenceString.slice(i + 1).indexOf(memory[j]);
+                            if (nextUse === -1) {
+                                indexToReplace = j;
+                                break;
+                            }
+                            if (nextUse > farthest) {
+                                farthest = nextUse;
+                                indexToReplace = j;
+                            }
+                        }
+                        
+                        memory[indexToReplace] = page;
+                    }
+                }
+                
+                step.frames = [...memory];
+                steps.push(step);
+            }
+            
+            return {faults: faults, steps: steps};
+        }
+        
+        /**
+         * Simulation de l'algorithme LRU
+         * @returns {object} Résultats de la simulation
+         */
+        function simulateLRU() {
+            let memory = [];
+            let lastUsed = []; // Dernière utilisation de chaque cadre
+            let faults = 0;
+            let steps = [];
+            
+            for (let i = 0; i < referenceString.length; i++) {
+                const page = referenceString[i];
+                let step = {page: page, frames: [], fault: false};
+                
+                if (!memory.includes(page)) {
+                    faults++;
+                    step.fault = true;
+                    
+                    if (memory.length < frameCount) {
+                        memory.push(page);
+                        lastUsed.push(i);
+                    } else {
+                        // Remplacer la page utilisée le moins récemment
+                        const lruIndex = lastUsed.indexOf(Math.min(...lastUsed));
+                        memory[lruIndex] = page;
+                        lastUsed[lruIndex] = i;
+                    }
+                } else {
+                    // Mettre à jour le temps d'accès
+                    const index = memory.indexOf(page);
+                    lastUsed[index] = i;
+                }
+                
+                step.frames = [...memory];
+                steps.push(step);
+            }
+            
+            return {faults: faults, steps: steps};
+        }
+        
+        /**
+         * Simulation de l'algorithme Seconde Chance
+         * @returns {object} Résultats de la simulation
+         */
+        function simulateSecondChance() {
+            let memory = [];
+            let referenceBits = []; // Bits de référence (0 ou 1)
+            let pointer = 0;        // Pointeur pour la recherche
+            let faults = 0;
+            let steps = [];
+            
+            for (let page of referenceString) {
+                let step = {page: page, frames: [], fault: false, referenceBits: [], pointer: -1};
+                
+                if (!memory.includes(page)) {
+                    faults++;
+                    step.fault = true;
+                    
+                    if (memory.length < frameCount) {
+                        memory.push(page);
+                        referenceBits.push(1);
+                    } else {
+                        // Recherche d'une page à remplacer
+                        while (true) {
+                            if (referenceBits[pointer] === 0) {
+                                // Remplacement
+                                memory[pointer] = page;
+                                referenceBits[pointer] = 1;
+                                pointer = (pointer + 1) % frameCount;
+                                break;
+                            } else {
+                                // Donner une seconde chance
+                                referenceBits[pointer] = 0;
+                                pointer = (pointer + 1) % frameCount;
+                            }
+                        }
+                    }
+                } else {
+                    // Mettre le bit de référence à 1
+                    const index = memory.indexOf(page);
+                    referenceBits[index] = 1;
+                }
+                
+                step.frames = [...memory];
+                step.referenceBits = [...referenceBits];
+                step.pointer = pointer;
+                steps.push(step);
+            }
+            
+            return {faults: faults, steps: steps};
+        }
+        
+        /**
+         * Affiche les résultats d'une simulation
+         * @param {string} algorithm - Nom de l'algorithme
+         * @param {object} result - Résultats de la simulation
+         * @param {string} targetElementId - ID de l'élément cible
+         */
+        function displayResults(algorithm, result, targetElementId) {
+            let html = `<div class="simulation-title">Simulation ${algorithm} - ${referenceString.length} pages, ${frameCount} cadres</div>`;
+            
+            // Création du tableau de résultats
+            html += '<table class="simulation-table">';
+            
+            // Ligne des pages référencées
+            html += '<tr><th>Page</th>';
+            for (let step of result.steps) {
+                html += `<td class="${step.fault ? 'page-fault' : ''}">${step.page}</td>`;
+            }
+            html += '</tr>';
+            
+            // Ligne des défauts de page
+            html += '<tr><th>Défaut</th>';
+            for (let step of result.steps) {
+                html += `<td>${step.fault ? 'F' : ''}</td>`;
+            }
+            html += '</tr>';
+            
+            // Lignes des cadres mémoire
+            for (let i = 0; i < frameCount; i++) {
+                html += `<tr><th>Cadre ${i+1}</th>`;
+                for (let step of result.steps) {
+                    let content = '';
+                    if (i < step.frames.length) {
+                        content = step.frames[i];
+                        
+                        // Affichage spécial pour la seconde chance
+                        if (algorithm === 'SECOND_CHANCE') {
+                            // Pointeur
+                            if (step.pointer === i) {
+                                content = `→${content}`;
+                            }
+                            
+                            // Bit de référence
+                            if (step.referenceBits && i < step.referenceBits.length) {
+                                const sign = step.referenceBits[i] === 1 ? '+' : '-';
+                                const signClass = step.referenceBits[i] === 1 ? 'plus' : 'minus';
+                                content += `<span class="reference-sign ${signClass}">${sign}</span>`;
+                            }
+                        }
+                    }
+                    html += `<td>${content}</td>`;
+                }
+                html += '</tr>';
+            }
+            
+            html += '</table>';
+            
+            // Résumé statistique
+            html += `<div class="stats">Total des défauts de page : ${result.faults}</div>`;
+            
+            document.getElementById(targetElementId).innerHTML = html;
+        }
+        
+        /**
+         * Affiche l'historique des exécutions
+         * @param {string} targetElementId - ID de l'élément cible
+         */
+        function showExecutions(targetElementId) {
+            let html = '<div class="simulation-title">Historique des simulations</div>';
+            
+            if (executions.length === 0) {
+                html += '<p style="text-align: center; color: var(--gray-dark);">Aucune simulation enregistrée</p>';
+            } else {
+                html += '<table class="simulation-table">';
+                html += '<tr><th>Algorithme</th><th>Défauts</th></tr>';
+                
+                for (let exec of executions) {
+                    html += `<tr>
+                        <td>${exec.algorithm}</td>
+                        <td>${exec.result.faults}</td>
+                     
+                    </tr>`;
+                }
+                
+                html += '</table>';
+            }
+            
+            document.getElementById(targetElementId).innerHTML = html;
+        }
+        
+        /**
+         * Sauvegarde l'historique dans un fichier texte
+         */
+         function saveExecutionsToFile() {
+    if (executions.length === 0) {
+        console.log("Aucune donnée à sauvegarder");
+        return;
+    }
+
+    // Formatage du contenu
+    let content = "IF3602 - Résultats des algorithmes\n";
+    content += "=================================\n\n";
+
+    for (let exec of executions) {
+        content += `${exec.algorithm}: ${exec.result.faults} défauts\n`;
+    }
+
+    content += "\n-------------------------------\n\n"; // Séparateur pour lisibilité
+
+    // Envoi au serveur pour ajout dans le fichier if3602.txt
+    fetch('/save', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content: content })
+    })
+    .then(response => response.text())
+    .then(data => {
+        console.log('Réponse du serveur :', data);
+        alert('Résultats sauvegardés dans if3602.txt');
+    })
+    .catch(error => {
+        console.error('Erreur lors de la sauvegarde :', error);
+        alert('Erreur lors de la sauvegarde.');
+    });
+}
+
+        /**
+         * Crée le graphique de comparaison des algorithmes
+         */
+        function createAlgorithmChart() {
+            const ctx = document.getElementById('algorithmChart').getContext('2d');
+            
+            // Préparation des données
+            const labels = executions.map(exec => {
+                // Traduction des noms d'algorithmes
+                const names = {
+                    'FIFO': 'FIFO', 
+                    'OPTIMAL': 'Optimal',
+                    'LRU': 'LRU',
+                    'SECOND_CHANCE': 'Seconde Chance'
+                };
+                return names[exec.algorithm] || exec.algorithm;
+            });
+            
+            const data = executions.map(exec => exec.result.faults);
+            const backgroundColors = [
+            'rgba(255, 99, 132, 0.7)',
+            'rgba(54, 162, 235, 0.7)',
+            'rgba(255, 206, 86, 0.7)',
+            'rgba(75, 192, 192, 0.7)',
+            'rgba(153, 102, 255, 0.7)'
+            ];
+            
+            // Création du graphique
+            algorithmChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Défauts de page',
+                        data: data,
+                        backgroundColor: backgroundColors,
+                        borderColor: backgroundColors.map(color => color.replace('0.7', '1')),
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: ${context.raw}`;
+                                }
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Comparaison des algorithmes',
+                            font: {
+                                size: 18
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Nombre de défauts'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Algorithmes'
+                            }
+                        }
+                    },
+                    animation: {
+                        duration: 1500,
+                        easing: 'easeOutQuart'
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
